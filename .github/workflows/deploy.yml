@@ -1,10 +1,9 @@
 name: Deploy to EC2
 on:
   push:
-    branches: [ main ]      
-  workflow_dispatch:         
-# main에 push될 때만 배포
-# 수동 실행 버튼(테스트용)
+    branches: [ main ]
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -16,8 +15,22 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -e                              
+            set -e
             cd /var/www/mysite
-            git pull origin main                
-            sudo nginx -t                       
-            sudo systemctl reload nginx 
+            git pull origin main
+            sudo nginx -t
+            sudo systemctl reload nginx
+
+      - name: 배포 성공 알림
+        if: success()
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"content":"✅ 배포 성공! ${{ github.repository }} (${{ github.actor }})"}' \
+            ${{ secrets.WEBHOOK_URL }}
+
+      - name: 배포 실패 알림
+        if: failure()
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"content":"❌ 배포 실패! 로그 확인 필요: ${{ github.repository }}"}' \
+            ${{ secrets.WEBHOOK_URL }}
